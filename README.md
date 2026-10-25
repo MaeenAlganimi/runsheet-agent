@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Run Sheet Agent
 
-## Getting Started
+An AI stage manager for live events. Type what just changed backstage ("we're running 10 minutes late", "add a raffle after the interval and push the rest back", "Lina is doing the auction now") and a Gemini agent edits the show's run sheet with real tool calls. Times ripple, overlaps are flagged, and every change is listed and can be undone.
 
-First, run the development server:
+**Live demo:** https://runsheet-agent.onrender.com (free instance, first load can take ~50 s to wake)
+
+## Why it's an agent, not a chatbot
+
+The model never writes the schedule as text. It can only act through eight typed tools:
+
+| Tool | What it does |
+| --- | --- |
+| `add_cue` | Insert at a time, after a cue, or at the end, optionally pushing later cues back |
+| `move_cue` | Move one cue to a clock time |
+| `shift_from` | Shift a cue and everything after it ("running late") |
+| `set_duration` | Change a length, optionally rippling later cues |
+| `rename_cue`, `assign_owner` | Edit details |
+| `delete_cue` | Remove, optionally closing the gap |
+| `set_start_time` | Move the whole show |
+
+The server runs a loop (max 6 steps): Gemini proposes function calls, the app validates and applies them with pure functions, and the results go back to the model (new sheet plus any overlaps), so it can correct itself or ask a question when a cue name is ambiguous. Bad calls such as unknown cues or negative durations come back as errors instead of crashing.
+
+## Stack
+
+Next.js 16 (App Router) · TypeScript · Tailwind CSS · Gemini API function calling (REST) · Vitest · lucide icons
+
+## Run locally
 
 ```bash
+npm install
+cp env.example .env.local   # free key: https://aistudio.google.com/apikey
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm test                    # operations + agent loop with a fake model
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without `GEMINI_API_KEY` the app runs in a labelled demo mode with a small rule-based planner.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Purpose |
+| --- | --- |
+| `GEMINI_API_KEY` | Gemini key |
+| `GEMINI_MODEL` | Optional, default `gemini-3.5-flash` |
+| `GEMINI_FALLBACK_MODEL` | Optional, used on 429/503, default `gemini-flash-latest` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Layout
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/lib/runsheet.ts`: data model, the eight operations (immutable), overlap detection, tool declarations
+- `src/lib/agent.ts`: the tool-calling loop, Gemini client with fallback, offline demo planner
+- `src/app/api/agent/route.ts`: validation and limits
+- `src/app/page.tsx`: timeline, chat, action log, undo
