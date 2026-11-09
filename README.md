@@ -47,3 +47,11 @@ Without `GEMINI_API_KEY` the app runs in a labelled demo mode with a small rule-
 - `src/lib/agent.ts`: the tool-calling loop, Gemini client with fallback, offline demo planner
 - `src/app/api/agent/route.ts`: validation and limits
 - `src/app/page.tsx`: timeline, chat, action log, undo
+
+## AI-assisted development
+
+This project was built with AI-assisted development: the code, tests and docs were drafted with an AI assistant and then checked by running the project's tests and build. It has not had an independent security audit, and nothing here is a claim about real users or production traffic.
+
+## License
+
+[MIT](LICENSE). Copyright (c) 2026 Maeen Alganimi.
